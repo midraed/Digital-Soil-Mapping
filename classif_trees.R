@@ -30,12 +30,8 @@ class.rpart
 # que puede asumir la variable Orden
 levels(calib$Orden)
 
-# Ahora deberíamos poder interpretar mejor yprob.
-
-# Vamos a ver si es mas fácil de analizar, graficándolo
 plot(class.rpart, compress=TRUE,uniform=TRUE)
 
-# Uff.. poco claro, agreguemos un poco de texto
 text(class.rpart,use.n=F,all=F,cex=.7,pretty=0,xpd=TRUE, col="blue")
 
 # Vamos a hacer uno con más información:
@@ -81,6 +77,7 @@ confusionMatrix(data=predict(class.rpart, type="class"), reference=calib$Orden)
 
 # Podemos concluir que si bien es simple de obtener no hemos tenido mucha precision
 # Vamos a utilizar otro método que posee algunas ventajas.
+
 
 #### Árboles de decisión con C50 ###################
 # Vamos a cargar una libreria llamada C50 que permite generar árboles de decisión 

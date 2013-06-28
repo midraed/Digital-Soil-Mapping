@@ -1,0 +1,164 @@
+## Establecemos el directorio de trabajo
+
+setwd("~/Proyectos/MDS/MDS VUco/")
+
+library(gstat)
+library(raster)
+library(sp)
+library(proj4)
+library(rgdal)
+
+
+### Preparacion de los datos #####
+
+### Cargamos los datos
+CE <- read.csv("horizontes_CE.csv")
+ARE <- read.csv("horizontes_ARE.csv")
+ARC <- read.csv("horizontes_ARC.csv")
+LIM <- read.csv("horizontes_LIM.csv")
+pH <- read.csv("horizontes_pH.csv")
+perfiles <- read.csv2("perfiles.csv")
+
+datos <- merge(perfiles, CE)
+datos <- merge(datos, LIM)
+datos <- merge(datos, ARE)
+datos <- merge(datos, ARC)
+datos <- merge(datos, pH)
+
+datos <- datos[!duplicated(datos),]
+
+### Subset de validacion y modelado
+#test.rows <- sample(1:nrow(datos), round(nrow(datos)*0.8,0))
+
+datos.model <- datos[test.rows, ]
+datos.valid <- datos[-test.rows, ]
+
+## Visualizamos los 2 sets
+datos.sp <- datos
+coordinates(datos.sp) = ~X+Y
+plot(datos.sp[test.rows,], col="green")
+points(datos.sp[-test.rows,], col="red")
+
+### covariables
+
+## Deben estar en una carpeta "covar" dentro de la carpeta de trabajo
+## Cargamos las covariables ambientales en R
+startdir <- getwd()
+setwd(paste(getwd(), "/covar", sep=""))
+files <- list.files(pattern="GTiff")
+stack1 <- list()
+for(i in 1:length(files)) {
+  stack1[[i]] <- raster(files[i])}
+covariables <- do.call(stack, stack1) ### JO!
+setwd(startdir)
+covariables
+#plot(covariables[[1:16]])
+#plot(covariables[[16:21]])
+
+mascara <- shapefile("mascara.shp")
+plot(mascara)
+
+covariables <- mask(covariables, mascara)
+covariables <- trim(covariables)
+writeRaster(covariables, "covar/covariables.img")
+
+# Chequeamos
+plot(covariables[[1:16]])
+plot(covariables[[16:21]])
+
+## Creamos la grilla de interpolacion
+halfres <- res(covariables)[1]/2
+grilla <- expand.grid(x=seq(from=xmin(covariables)+halfres, to=xmax(covariables)-halfres, by=res(covariables)[1]), y=seq(from=ymin(covariables)+halfres, to=ymax(covariables)-halfres, by=res(covariables)[2]))
+coordinates(grilla) <- ~ x+y
+gridded(grilla) <- TRUE
+
+# Extraemos los valores de las covariables
+datos <- cbind(datos, extract(covariables, datos.sp)) 
+
+datos.model <- datos[test.rows, ]
+datos.valid <- datos[-test.rows, ]
+
+
+# RK ########################################################################################################################################
+
+cuanti <- c(18,19,21,25:54) #Esta variable tiene los indices de las variables a interpolar
+
+# Definimos la variable a partir del loop !
+for(i in cuanti){
+  datos_select <- datos.model[,c(1,4:5,i, 55:ncol(datos.model))] # Para armar una tabla ID, X, Y, Variable, Covariables
+  datos_select <- na.omit(datos_select)
+  varname=names(datos_select[4])
+  
+  Model <- lm(as.formula(paste(varname,"~.-ID-X-Y", sep="")), datos_select) 
+  Model.step <- step(Model, direction="both")
+  
+  sink(paste("resultados/summary_MLR",".txt", sep=""), append=TRUE)
+  print(summary(Model.step))
+  sink()
+  
+  raster.MLR <- predict(covariables, Model.step)
+  writeRaster(raster.MLR, filename=paste("resultados/", varname, "_MLR.tif", sep=""),overwrite=T)
+  
+  ## Separamos los residuos y los reservamos para para krigearlos
+  residuos <- Model.step$residuals
+  write.csv(residuos, paste(varname, "_residuos.csv", sep=""))            
+              
+  residuos <- cbind(datos_select,residuos)
+    
+  ### KRIGING DE LOS RESIDUOS
+  coordinates(residuos) = ~X+Y
+  ## Vemos un resumen del objeto
+  
+  sink(paste("resultados/summary_residuos",".txt", sep=""), append=TRUE)
+  print(names(datos_select)[4])
+  print(summary(residuos))
+  sink()
+              
+  png(paste("graf/",varname, "_residuos.png",sep=""), 1000, 1000)            
+  print(bubble(residuos, "residuos",col=c("blue", "red"))) # Este graf. se ve mejor a pantalla completa
+  dev.off()            
+
+  variog = variogram(residuos~1, residuos)
+  variog.ajust <- fit.variogram(variog, model=vgm(psill=20, model="Sph", range=10000, nugget=0))
+      
+  png(paste("graf/",varname, "_variograma.png",sep=""), 1000, 1000)     
+  print(plot(variog, variog.ajust))
+  dev.off() 
+          
+  residuos <- remove.duplicates(residuos) #removemos los duplicados
+  
+  Residuos.krig <- krige(residuos~1, residuos, newdata=grilla, model=variog.ajust)
+  
+  raster.Krig <- raster(Residuos.krig["var1.pred"])
+  raster.Var <- sqrt(raster(Residuos.krig["var1.var"]))  
+  
+  raster.RK <- raster.MLR + raster.Krig
+  raster.RK_Inf <- raster.RK - raster.Var
+  raster.RK_Sup <- raster.RK + raster.Var
+  
+  writeRaster(raster.RK, filename=paste("resultados/", varname, "_RK.tif", sep=""),overwrite=T)
+  writeRaster(raster.Var,  filename=paste("resultados/", varname, "_Var.tif", sep=""),overwrite=T)
+  writeRaster(raster.RK_Inf, filename=paste("resultados/", varname, "_RK_Inf.tif", sep=""),overwrite=T)
+  writeRaster(raster.RK_Sup,  filename=paste("resultados/", varname, "_RK_Sup.tif", sep=""),overwrite=T)
+  
+  ## Validacion
+    
+  datos_svalid <- datos.valid[,c(1,4:5,i, 55:ncol(datos.model))]
+  datos_svalid$Pred <- extract(raster.RK, datos.sp[-test.rows,])
+      
+  # Graf
+  png(paste("graf/",varname, "_validacion.png",sep=""), 1000, 1000) 
+  plot(datos_svalid$Pred, datos_svalid[,4])
+  abline(1,1)
+  dev.off()       
+      
+  # ME - Mean prediction error
+  sink("resultados/validacion.txt", append=TRUE)
+  print(varname)
+  ME <- mean(datos_svalid$Pred - datos_svalid[,4], na.rm=T)
+  print(paste("ME", ME))
+  # RMSE - Root mean square prediction error
+  RMSE <- mean((datos_svalid$Pred - datos_svalid[,4])^2, na.rm=T)
+  print(paste("RMSE", RMSE))
+  sink()    
+  }

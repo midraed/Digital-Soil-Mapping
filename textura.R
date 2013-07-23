@@ -17,5 +17,6 @@ table(textura.df$CLASS)
 clases <- levels(textura.df$CLASS)
 
 ## Y obtenemos el raster
-textura.r <- setValues(clasificacion, as.numeric(textura.df$CLASS))
-plot(textura.r)
+textura.r <- setValues(SAND, as.numeric(textura.df$CLASS))
+plot(textura.r, col=rainbow(length(clases)), legend=F)
+legend("bottomright", legend=clases, fill=rainbow(length(clases)))

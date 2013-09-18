@@ -85,23 +85,24 @@ nyfit_mayor[nyfit_mayor<0] <- NA
 spfit_mayor[spfit_mayor<0] <- NA
 
 #### Graficos  #####
-# Esta seccion selecciona un perfil al azar y lo grafica
-# con diferentes curvas
-st=sample(1:ndata, 1) ##Elegimos un perfil al azar
-subs <- subset(dat_m, dat_m[, 1] == st)
-plot(rep(subs[,4],each=2), sort(c(subs[,2], subs[,3])), type="s", xlab=VarName, ylab="Profundidad", 
-     ylim = rev(range(c(0,subs[,3]))), main=paste("Perfil: ", st,  " / ", IDnames[st]), xlim=c(min(subs[,4])*0.8,max(subs[,4])*1.2))
-lines(spfit[,st], 0:mxd,col="red", lty=1, ylim = rev(range(c(0,subs[,3]))))
-lines(spfit_menor[,st], 0:mxd,col="red2", lty=3, ylim = rev(range(c(0,subs[,3]))))
-lines(spfit_mayor[,st], 0:mxd,col="red2", lty=3, ylim = rev(range(c(0,subs[,3]))))
-abline(h=as.vector(d), lty=2, col="grey60")
-newhor <- vector()
-for(nwh in 1:length(d)-1){newhor[nwh] <- (d[nwh]+d[nwh+1])/2}
-points(nyfit_menor[st,1:length(d)-1],newhor, col="lightblue", pch=20,ylim = rev(range(c(0,subs[,3]))))
-points(nyfit_mayor[st,1:length(d)-1],newhor, col="lightblue", pch=20,ylim = rev(range(c(0,subs[,3]))))
-points(nyfit[st,1:length(d)-1],newhor, col="blue", pch=19,ylim = rev(range(c(0,subs[,3]))))
-legend(inset=.02, x="bottomright", legend= c("medido", paste("spline (lambda ", lam, "+-0.2)"), "horiz. sintéticos", "muestreo"), 
-       col=c("black", "red", "grey60", "blue"),text.col = "black", lty = c(1, 1, 2, 0), pch = c(NA, NA, NA, 20), cex=0.8)
+for (st in 1:ndata) {
+  png(paste("profile", st, ".png"))
+      subs <- subset(dat_m, dat_m[, 1] == st)
+      plot(rep(subs[,4],each=2), sort(c(subs[,2], subs[,3])), type="s", xlab=VarName, ylab="Profundidad", 
+           ylim = rev(range(c(0,subs[,3]))), main=paste("Perfil: ", st,  " / ", IDnames[st]), xlim=c(min(subs[,4])*0.8,max(subs[,4])*1.2))
+      lines(spfit[,st], 0:mxd,col="red", lty=1, ylim = rev(range(c(0,subs[,3]))))
+      lines(spfit_menor[,st], 0:mxd,col="red2", lty=3, ylim = rev(range(c(0,subs[,3]))))
+      lines(spfit_mayor[,st], 0:mxd,col="red2", lty=3, ylim = rev(range(c(0,subs[,3]))))
+      abline(h=as.vector(d), lty=2, col="grey60")
+      newhor <- vector()
+      for(nwh in 1:length(d)-1){newhor[nwh] <- (d[nwh]+d[nwh+1])/2}
+      points(nyfit_menor[st,1:length(d)-1],newhor, col="lightblue", pch=20,ylim = rev(range(c(0,subs[,3]))))
+      points(nyfit_mayor[st,1:length(d)-1],newhor, col="lightblue", pch=20,ylim = rev(range(c(0,subs[,3]))))
+      points(nyfit[st,1:length(d)-1],newhor, col="blue", pch=19,ylim = rev(range(c(0,subs[,3]))))
+      legend(inset=.02, x="bottomright", legend= c("medido", paste("spline (lambda ", lam, "+-0.2)"), "horiz. sintéticos", "muestreo"), 
+             col=c("black", "red", "grey60", "blue"),text.col = "black", lty = c(1, 1, 2, 0), pch = c(NA, NA, NA, 20), cex=0.8)
+      dev.off( ) 
+}
 
 #### Exportar ####
 cNames <- c("ID","X", "Y", paste(VarName, paste(d[,1:length(d)-1], "-", d[,2:length(d)], sep=""), sep="_"), "MaxDepth")

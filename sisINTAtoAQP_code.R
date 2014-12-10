@@ -1,8 +1,8 @@
-sisINTAtoAQP <- function(sisinta){ 
+sisINTAtoAQP <- function(sisinta, color_seco=FALSE){ 
   require(aqp)
   
   # Color
-  color <- as.character(sisinta$color_humedo_hvc)
+  color <- ifelse(!color_seco, as.character(sisinta$color_humedo_hvc), as.character(sisinta$color_seco_hvc))
   sisinta$HUE <- substr(x = color,start = 0, stop = regexpr(" ", color)-1)
   slash <- regexpr("/", color)
   sisinta$VALUE <- substr(x = color, start = slash-1, stop = slash-1)
@@ -49,6 +49,7 @@ sisINTAtoAQP <- function(sisinta){
                     "pedregosidad_clase", "pedregosidad_grado", "sales", "observaciones")
   suelos <- Horizon
   suelos$id <- as.character(suelos$id)
+  suelos$soil_color <- as.character(suelos$soil_color)
   depths(suelos) <- id ~ top + bottom
   Sites <- unique(Sites)
   Sites$id <- as.character(Sites$id)

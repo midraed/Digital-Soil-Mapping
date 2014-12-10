@@ -47,7 +47,7 @@ sisINTAtoAQP <- function(sisinta, color_seco=FALSE){
                     "grupo", "grupo_descripcion", "fase_codigo", "fase_nombre", "capacidad_clase", "paisaje_tipo",
                     "paisaje_forma", "paisaje_simbolo", "uso_de_la_tierra", "vegetacion_o_cultivos", "cobertura_vegetal", 
                     "material_originario", "relieve", "posicion", "pendiente",
-                    "perfil_escurrimiento", "perfil_permeabilidad", "perfil_anegamiento", "perfil_drenaje",
+                    "escurrimiento", "permeabilidad", "anegamiento", "drenaje",
                     "profundidad_napa", "erosion_grado", "erosion_tipo",
                     "pedregosidad_clase", "pedregosidad_grado", "sales", "observaciones")
   suelos <- Horizon

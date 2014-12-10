@@ -1,8 +1,9 @@
 sisINTAtoAQP <- function(sisinta, color_seco=FALSE){ 
   require(aqp)
-  
+  # test: sisinta <- datos
   # Color
-  color <- ifelse(!color_seco, as.character(sisinta$color_humedo_hvc), as.character(sisinta$color_seco_hvc))
+  if(!color_seco){color <- as.character(sisinta$color_humedo_hvc)}
+  if(color_seco){color <- as.character(sisinta$color_seco_hvc)}
   sisinta$HUE <- substr(x = color,start = 0, stop = regexpr(" ", color)-1)
   slash <- regexpr("/", color)
   sisinta$VALUE <- substr(x = color, start = slash-1, stop = slash-1)
@@ -27,9 +28,11 @@ sisINTAtoAQP <- function(sisinta, color_seco=FALSE){
                       "concreciones", "CIC_H", "CIC_S",  "CIC_T", "PorcSat_T", "PorcSat_H", "bases_Ca",  "bases_Mg", "bases_K", "bases_Na", "barnices", 
                       "color_humedo", "color_seco", "consistencia_en_seco", "consistencia_en_humedo", "adhesividad", "plasticidad", "formaciones_especiales", "humedad", "moteados", "soil_color")
   #Site Data
-  #sisinta$X <- substr(perfil_ubicacion_coordenadas, 8 , regexpr(" ", perfil_ubicacion_coordenadas)-1)
-  #sisinta$Y <- substr(perfil_ubicacion_coordenadas, regexpr("(2[:space])", perfil_ubicacion_coordenadas)+1, regexpr(")", perfil_ubicacion_coordenadas)-1)
-  Sites <- with(sisinta, data.frame(as.character(perfil_numero), perfil_modal, perfil_fecha, perfil_ubicacion_coordenadas, perfil_ubicacion_descripcion,
+  
+  puntos <- substr(sisinta$perfil_ubicacion_coordenadas, 8,40)
+  sisinta$X <- as.numeric(substr(puntos, 0 , regexpr(" ", puntos)-1))
+  sisinta$Y <- as.numeric(substr(puntos, regexpr(" ", puntos)+1, regexpr(")", puntos)-1))
+  Sites <- with(sisinta, data.frame(as.character(perfil_numero), perfil_modal, perfil_fecha, perfil_ubicacion_coordenadas, X, Y, perfil_ubicacion_descripcion,
                       perfil_ubicacion_mosaico, perfil_ubicacion_aerofoto, perfil_ubicacion_recorrido,
                       perfil_serie_nombre, perfil_serie_simbolo, perfil_grupo_codigo, perfil_grupo_descripcion, perfil_fase_codigo, perfil_fase_nombre,
                       perfil_capacidad_clase, perfil_paisaje_tipo, perfil_paisaje_forma, perfil_paisaje_simbolo,
@@ -39,7 +42,7 @@ sisINTAtoAQP <- function(sisinta, color_seco=FALSE){
                       perfil_profundidad_napa,                     
                       perfil_erosion_clase, perfil_erosion_subclase, perfil_pedregosidad_clase, perfil_pedregosidad_subclase, 
                       perfil_sales, perfil_observaciones))
-  names(Sites) <- c("id", "modal", "fecha", "coordenadas", "ubicacion_descripcion", "mosaico",
+  names(Sites) <- c("id", "modal", "fecha", "coordenadas", "X", "Y", "ubicacion_descripcion", "mosaico",
                     "aerofoto", "recorrido","serie", "simbolo", 
                     "grupo", "grupo_descripcion", "fase_codigo", "fase_nombre", "capacidad_clase", "paisaje_tipo",
                     "paisaje_forma", "paisaje_simbolo", "uso_de_la_tierra", "vegetacion_o_cultivos", "cobertura_vegetal", 
@@ -54,6 +57,8 @@ sisINTAtoAQP <- function(sisinta, color_seco=FALSE){
   Sites <- unique(Sites)
   Sites$id <- as.character(Sites$id)
   site(suelos) <- Sites
+  coordinates(suelos) <- ~ X + Y
+  proj4string(suelos) <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs "
   return(suelos)
 }
 
